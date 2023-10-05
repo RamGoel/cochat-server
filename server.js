@@ -1,17 +1,22 @@
 const { Server } = require('socket.io')
 const cors = require('cors');
 const express = require('express');
-const request=require('request')
-require('dotenv').config()
+const request = require('request')
+const bodyParser = require('body-parser')
 const http = require('http');
-const app=express()
+const app = express()
 const server = http.createServer(app);
 app.use(cors());
-const { connect } = require('./db/conn')
-connect()
+require('dotenv').config()
+require('./db/conn').connect();
+const { userModel } = require('./models/user');
+const { roomModel } = require('./models/rooms');
 const io = new Server(8000, {
-    cors:true
+  cors: true
 })
+
+app.use(express())
+app.use(bodyParser())
 
 const rooms = new Map();
 
@@ -20,34 +25,27 @@ io.on('connection', (socket) => {
 
   socket.on('join_room', (roomName, userName) => {
     console.log(roomName)
+
     // Join a specific room
-    socket.join(roomName);
 
     // Store the room data if it doesn't exist
-    if (!rooms.has(roomName)) {
-      rooms.set(roomName, []);
+    if (rooms.has(roomName)) {
+      socket.join(roomName);
+      socket.emit('room messages', rooms.get(roomName));
+      socket.to(roomName).emit('user joined', userName);
+    } else {
+      socket.join(roomName);
+      socket.emit('new_member', "This Room is not available")
     }
-
-    console.log(rooms)
-
-    // // Send the existing messages in the room to the connected user
-    socket.emit('room messages', rooms.get(roomName));
-
-    // // Notify other users in the room that a new user has joined
-    socket.to(roomName).emit('user joined', userName);
-
-    // // Broadcast the updated list of connected users in the room
-    // const usersInRoom = Object.keys(io.sockets.adapter.rooms[roomName].sockets);
-    // io.in(roomName).emit('users in room', usersInRoom);
   });
 
   socket.on('chat message', (message, userName, roomName) => {
     // Store the message in the room data
-    const dt=new Date()
+    const dt = new Date()
     const roomMessages = rooms.get(roomName);
     if (roomMessages) {
-      
-      roomMessages.push({ user: userName, text: message, timestamp:dt });
+
+      roomMessages.push({ user: userName, text: message, timestamp: dt });
       rooms.set(roomName, roomMessages);
     }
 
@@ -66,29 +64,30 @@ io.on('connection', (socket) => {
     });
     console.log('User disconnected:', socket.id);
   });
+
   socket.on('code exec', (data) => {
     console.log(data)
 
 
-  var dataSend = {
-      script : data.code,
+    var dataSend = {
+      script: data.code,
       language: data.language,
-      versionIndex:0,
+      versionIndex: 0,
       clientId: "ed4e43f3d62e39ecd556a8e2c48d470f",
-      clientSecret:"78cb7b9e32c1ae4e09a1e0bbbef278ad374623e7d8866d48279a48ac42e92c14"
+      clientSecret: "78cb7b9e32c1ae4e09a1e0bbbef278ad374623e7d8866d48279a48ac42e92c14"
     };
 
-  request({
+    request({
       url: 'https://api.jdoodle.com/v1/execute',
       method: "POST",
       json: dataSend
-  },(error, response, body)=>{
+    }, (error, response, body) => {
       console.log('error:', error);
-      socket.emit("code executed",response.body.output);
+      socket.emit("code executed", response.body.output);
       console.log('body:', body);
-  })
-    
-      });
+    })
+
+  });
 
 });
 
@@ -96,6 +95,137 @@ const port = process.env.PORT || 9000;
 server.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+app.get('/user', async (req, res) => {
+
+  console.log(req.body)
+  if (!req.body.email) {
+    res.status(400).json({
+      message: "Email is Required"
+    })
+    return;
+  }
+  try {
+    const userData = await userModel.find({ email: req.body.email })
+    res.status(200).json({
+      user: userData
+    })
+  } catch (err) {
+    res.status(500).json({
+      message: err.message
+    })
+  }
+
+
+})
+
+app.post('/user', async (req, res) => {
+
+
+  const newUser = new userModel(req.body)
+
+  try {
+    await newUser.save();
+    res.status(200).json({
+      data: newUser
+    })
+  } catch (err) {
+    res.status(400).json({
+      message: err.message.includes("E11000") ? "User Already Exisits" : "All details Required"
+    })
+  }
+
+})
+
+app.post('/room/create', async (req, res) => {
+  const { roomName, userEmail, roomIcon } = req.body
+
+  const newRoom = new roomModel({
+    name: roomName,
+    members: [userEmail],
+    icon: roomIcon
+  })
+
+  try {
+
+    const result = await newRoom.save()
+
+    res.status(200).json({
+      data: result
+    })
+  } catch (err) {
+    res.status(400).json({
+      message: err.message.includes("E11000") ? "Room Already Exisits" : "All details Required"
+    })
+  }
+
+})
+
+app.post('/room/join', async (req, res) => {
+  const { roomName, userEmail } = req.body
+
+
+  try {
+
+    const roomToJoin = await roomModel.find({ name: roomName })
+
+    if (roomToJoin.length > 0) {
+      const updatedRoom = await roomModel.updateOne({ roomName: roomName }, { members: [...roomToJoin[0].members, userEmail] })
+
+      res.status(200).json({
+        data: updatedRoom
+      })
+
+    }
+
+  } catch (err) {
+    res.status(400).json({
+      message: err.message
+    })
+  }
+
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -122,3 +252,5 @@ server.listen(port, () => {
 // console.error(error);
 // });
 // })
+
+
