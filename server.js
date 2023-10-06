@@ -23,19 +23,17 @@ const rooms = new Map();
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('join_room', (roomName, userName) => {
-    console.log(roomName)
-
-    // Join a specific room
-
-    // Store the room data if it doesn't exist
+  socket.on('join_room', (roomName, userEmail) => {
+    console.log({roomName, userEmail})
     if (rooms.has(roomName)) {
+      console.log("this exec")
       socket.join(roomName);
-      socket.emit('room messages', rooms.get(roomName));
-      socket.to(roomName).emit('user joined', userName);
+      socket.to(roomName).emit('user_joined', userEmail);
     } else {
+      console.log("that exec")
+      rooms.set(roomName,[])
       socket.join(roomName);
-      socket.emit('new_member', "This Room is not available")
+      socket.emit('welcome_user', userEmail);
     }
   });
 
@@ -44,12 +42,11 @@ io.on('connection', (socket) => {
     const dt = new Date()
     const roomMessages = rooms.get(roomName);
     if (roomMessages) {
-
       roomMessages.push({ user: userName, text: message, timestamp: dt });
       rooms.set(roomName, roomMessages);
     }
 
-    console.log(rooms)
+    console.log(roomMessages)
     // Broadcast the message to all users in the room
     io.in(roomName).emit('chat message', { user: userName, text: message });
   });
