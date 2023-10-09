@@ -17,7 +17,23 @@ const io = new Server(8000, {
 
 app.use(express())
 app.use(bodyParser())
-
+app.use(express.static(__dirname+'/frontend'))
+app.get('/', (req, res) => {
+  console.log('ex')
+  res.sendFile(__dirname + '/frontend/index.html');
+})
+app.get('/dashboard', (req, res) => {
+  console.log('ex')
+  res.sendFile(__dirname + '/frontend/dashboard.html');
+})
+app.get('/playground', (req, res) => {
+  console.log('ex')
+  res.sendFile(__dirname + '/frontend/playground.html');
+})
+app.get('/profile', (req, res) => {
+  console.log('ex')
+  res.sendFile(__dirname + '/frontend/profile.html');
+})
 const rooms = new Map();
 
 io.on('connection', (socket) => {
