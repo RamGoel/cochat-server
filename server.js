@@ -11,7 +11,7 @@ require('dotenv').config()
 require('./db/conn').connect();
 const { userModel } = require('./models/user');
 const { roomModel } = require('./models/rooms');
-const io = new Server(8000, {
+const io = new Server(process.env.PORT || 9000, {
   cors: true
 })
 
@@ -88,103 +88,103 @@ io.on('connection', (socket) => {
 
 });
 
-const port = process.env.PORT || 9000;
-server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+// const port = process.env.PORT || 8000;
+// server.listen(port, () => {
+//   console.log(`Server is running on port ${port}`);
+// });
 
-app.get('/', (req, res) => {
-  res.send("Hello World from cochat-server")
-})
-app.get('/user', async (req, res) => {
+// app.get('/', (req, res) => {
+//   res.send("Hello World from cochat-server")
+// })
+// app.get('/user', async (req, res) => {
 
-  console.log(req.body)
-  if (!req.body.email) {
-    res.status(400).json({
-      message: "Email is Required"
-    })
-    return;
-  }
-  try {
-    const userData = await userModel.find({ email: req.body.email })
-    res.status(200).json({
-      user: userData
-    })
-  } catch (err) {
-    res.status(500).json({
-      message: err.message
-    })
-  }
-
-
-})
-
-app.post('/user', async (req, res) => {
+//   console.log(req.body)
+//   if (!req.body.email) {
+//     res.status(400).json({
+//       message: "Email is Required"
+//     })
+//     return;
+//   }
+//   try {
+//     const userData = await userModel.find({ email: req.body.email })
+//     res.status(200).json({
+//       user: userData
+//     })
+//   } catch (err) {
+//     res.status(500).json({
+//       message: err.message
+//     })
+//   }
 
 
-  const newUser = new userModel(req.body)
+// })
 
-  try {
-    await newUser.save();
-    res.status(200).json({
-      data: newUser
-    })
-  } catch (err) {
-    res.status(400).json({
-      message: err.message.includes("E11000") ? "User Already Exisits" : "All details Required"
-    })
-  }
-
-})
-
-app.post('/room/create', async (req, res) => {
-  const { roomName, userEmail, roomIcon } = req.body
-
-  const newRoom = new roomModel({
-    name: roomName,
-    members: [userEmail],
-    icon: roomIcon
-  })
-
-  try {
-
-    const result = await newRoom.save()
-
-    res.status(200).json({
-      data: result
-    })
-  } catch (err) {
-    res.status(400).json({
-      message: err.message.includes("E11000") ? "Room Already Exisits" : "All details Required"
-    })
-  }
-
-})
-
-app.post('/room/join', async (req, res) => {
-  const { roomName, userEmail } = req.body
+// app.post('/user', async (req, res) => {
 
 
-  try {
+//   const newUser = new userModel(req.body)
 
-    const roomToJoin = await roomModel.find({ name: roomName })
+//   try {
+//     await newUser.save();
+//     res.status(200).json({
+//       data: newUser
+//     })
+//   } catch (err) {
+//     res.status(400).json({
+//       message: err.message.includes("E11000") ? "User Already Exisits" : "All details Required"
+//     })
+//   }
 
-    if (roomToJoin.length > 0) {
-      const updatedRoom = await roomModel.updateOne({ roomName: roomName }, { members: [...roomToJoin[0].members, userEmail] })
+// })
 
-      res.status(200).json({
-        data: updatedRoom
-      })
+// app.post('/room/create', async (req, res) => {
+//   const { roomName, userEmail, roomIcon } = req.body
 
-    }
+//   const newRoom = new roomModel({
+//     name: roomName,
+//     members: [userEmail],
+//     icon: roomIcon
+//   })
 
-  } catch (err) {
-    res.status(400).json({
-      message: err.message
-    })
-  }
+//   try {
 
-})
+//     const result = await newRoom.save()
+
+//     res.status(200).json({
+//       data: result
+//     })
+//   } catch (err) {
+//     res.status(400).json({
+//       message: err.message.includes("E11000") ? "Room Already Exisits" : "All details Required"
+//     })
+//   }
+
+// })
+
+// app.post('/room/join', async (req, res) => {
+//   const { roomName, userEmail } = req.body
+
+
+//   try {
+
+//     const roomToJoin = await roomModel.find({ name: roomName })
+
+//     if (roomToJoin.length > 0) {
+//       const updatedRoom = await roomModel.updateOne({ roomName: roomName }, { members: [...roomToJoin[0].members, userEmail] })
+
+//       res.status(200).json({
+//         data: updatedRoom
+//       })
+
+//     }
+
+//   } catch (err) {
+//     res.status(400).json({
+//       message: err.message
+//     })
+//   }
+
+// })
 
 
 
